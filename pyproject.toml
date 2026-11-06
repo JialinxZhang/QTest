@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qtest-bench"
+version = "0.4.0"
+description = "Portable, evidence-first quantum benchmarking toolchain"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.0,<3", "jsonschema>=4.22,<5"]
+
+[project.optional-dependencies]
+web = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "argon2-cffi>=23.1,<26"]
+test = ["httpx>=0.27,<1"]
+
+[project.scripts]
+qtest = "qtest_bench.cli:main"
+qtest-web = "qtest_bench.web.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qtest_bench = ["schemas/*.json"]
+"qtest_bench.web" = ["static/*", "defaults/*.json"]

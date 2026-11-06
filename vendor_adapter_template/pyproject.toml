@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qtest-vendor-example"
+version = "0.0.1"
+description = "Nonfunctional vendor adapter template; implement SDK calls before use"
+requires-python = ">=3.11"
+dependencies = ["qtest-bench==0.3.0"]
+
+[project.entry-points."qtest_bench.adapters"]
+vendor-example = "vendor_adapter:VendorAdapter"
+
+[tool.setuptools]
+py-modules = ["vendor_adapter"]

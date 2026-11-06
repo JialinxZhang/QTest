@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>QTest · 量子测试管理台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%230f766e'/%3E%3Ctext x='8' y='29' fill='white' font-size='28'%3EQ%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div id="login" class="login-wrap" hidden>
+    <section class="login-story">
+      <a class="brand" href="#"><span class="brand-mark">Q</span><span>QTest <small>QUANTUM BENCHMARK</small></span></a>
+      <div><p class="eyebrow">从实验到证据</p><h1>让每一次量子测试<br>可追踪，可复现。</h1><p>跨技术路线的测试工作区。统一管理用例、执行实验，<br>以原始证据理解设备表现。</p></div>
+      <div class="orbit" aria-hidden="true"><i></i><i></i><i></i><b>Q</b></div>
+      <p class="login-foot">超导 · 中性原子 · 光子 · 离子阱</p>
+    </section>
+    <section class="login-form-wrap"><form id="login-form">
+      <span class="overline">LAB WORKSPACE</span><h2>登录实验室工作区</h2><p class="muted">使用管理员为你创建的账号。</p>
+      <label>用户名<input name="username" autocomplete="username" required autofocus></label>
+      <label>密码<input type="password" name="password" autocomplete="current-password" required></label>
+      <p id="login-error" class="error" role="alert"></p>
+      <button class="primary full" type="submit">登录管理台 <span>→</span></button>
+      <p class="small muted">首次使用：请在服务器执行 qtest-web init 创建管理员。</p>
+    </form></section>
+  </div>
+  <div id="workspace" class="shell" hidden>
+    <aside class="sidebar">
+      <a class="brand" href="#overview"><span class="brand-mark">Q</span><span>QTest <small>量子测试管理台</small></span></a>
+      <div class="workspace-label"><span class="dot"></span> 实验室共享工作区</div>
+      <p class="nav-label">工作空间</p>
+      <nav aria-label="主导航">
+        <a href="#overview" data-nav="overview"><span>◫</span> 总览</a>
+        <a href="#cases" data-nav="cases"><span>▦</span> 用例库</a>
+        <a href="#tasks" data-nav="tasks"><span>▷</span> 测试任务</a>
+        <a href="#results" data-nav="results"><span>▥</span> 结果与对比</a>
+        <a href="#settings" data-nav="settings"><span>⚙</span> 系统管理</a>
+      </nav>
+      <div class="side-bottom"><div class="side-note"><span class="dot" id="worker-dot"></span><span id="worker-label">连接执行器…</span></div><p>证据驱动 · 独立验收</p><div class="account"><span class="avatar" id="avatar">Q</span><div><b id="username"></b><small id="role"></small></div><button id="logout" class="icon-button" title="退出登录" aria-label="退出登录">↪</button></div></div>
+    </aside>
+    <div class="main-shell"><header class="topbar"><span>工作空间 <span class="slash">/</span> <b id="breadcrumb">总览</b></span><div><span class="pill neutral">实验室内网</span><span class="version" id="version"></span><button type="button" id="mobile-logout" class="small-button">退出登录</button></div></header>
+      <main id="main" tabindex="-1"><p class="muted">正在加载…</p></main>
+      <footer>QTest · 可复现的量子计算测试 <span>按实验条件比较，不跨路线汇总评分</span></footer>
+    </div>
+  </div>
+  <dialog id="modal"><div class="dialog-head"><h2 id="modal-title"></h2><button type="button" class="icon-button" data-action="close-modal" aria-label="关闭">×</button></div><div id="modal-body"></div></dialog>
+  <div id="toast" role="status" hidden></div>
+</body>
+</html>

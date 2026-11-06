@@ -1,0 +1,6 @@
+# Replace the hostname and certificate paths with laboratory-managed values.
+# The matching Web command uses: --origin https://qtest.lab.example
+qtest.lab.example {
+    tls C:/QTestTLS/qtest.crt C:/QTestTLS/qtest.key
+    reverse_proxy 127.0.0.1:8765
+}

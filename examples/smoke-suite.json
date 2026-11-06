@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "toolchain-smoke-v1",
+  "protocol_version": "pilot-closed-0.1",
+  "description": "Integration fixtures only; not the production leaderboard suite. No chemical or quantum advantage claim.",
+  "seed": 20261102,
+  "limits": {"max_jobs": 100, "max_shots": 100000, "wall_seconds": 120, "poll_seconds": 0.01},
+  "cases": [
+    {"id": "ising-evolution", "benchmark": "kernel.hamiltonian.v1", "repetitions": 2, "shots": 512,
+      "parameters": {"n_qubits": 3, "hx": [0.7, 0.7, 0.7], "hz": [0.1, 0.1, 0.1], "edges": [[0, 1, 0.5], [1, 2, 0.5]], "initial": "000", "times": [0, 0.5, 1]}},
+    {"id": "fock-hom", "benchmark": "kernel.boson_fock.v1", "repetitions": 2, "shots": 512,
+      "parameters": {"input_occupation": [1, 1], "unitary_real": [[0.7071067811865475, 0.7071067811865475], [0.7071067811865475, -0.7071067811865475]], "unitary_imag": [[0, 0], [0, 0]]}},
+    {"id": "mis-cycle5", "benchmark": "application.mis.v1", "repetitions": 2, "shots": 512,
+      "parameters": {"n_vertices": 5, "edges": [[0, 1], [0, 4], [1, 2], [2, 3], [3, 4]], "penalty": 2, "depth": 1, "iterations": 5}},
+    {"id": "vqe-toy", "benchmark": "application.vqe_toy.v1", "repetitions": 2, "shots": 512,
+      "parameters": {"coefficients": {"II": -0.4, "ZI": 0.2, "IZ": -0.3, "ZZ": 0.1, "XX": 0.5}, "iterations": 5}},
+    {"id": "material-ising-chain", "benchmark": "application.material_dynamics.v1", "repetitions": 2, "shots": 512,
+      "parameters": {"n_qubits": 4, "hx": [0.6, 0.6, 0.6, 0.6], "hz": [0.1, 0.1, 0.1, 0.1], "edges": [[0, 1, 0.8], [1, 2, 0.8], [2, 3, 0.8]], "initial": "0000", "times": [0.4, 1.2]}}
+  ]
+}
