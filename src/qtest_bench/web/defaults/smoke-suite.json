@@ -6,6 +6,8 @@
   "seed": 20261102,
   "limits": {"max_jobs": 100, "max_shots": 100000, "wall_seconds": 120, "poll_seconds": 0.01},
   "cases": [
+    {"id": "mirror-depth-sweep", "benchmark": "capability.mirror_fidelity.v1", "repetitions": 2, "shots": 512,
+      "parameters": {"n_qubits": 4, "depths": [2, 5, 9], "circuit_seed": 20261109, "success_threshold": 0.75}},
     {"id": "ising-evolution", "benchmark": "kernel.hamiltonian.v1", "repetitions": 2, "shots": 512,
       "parameters": {"n_qubits": 3, "hx": [0.7, 0.7, 0.7], "hz": [0.1, 0.1, 0.1], "edges": [[0, 1, 0.5], [1, 2, 0.5]], "initial": "000", "times": [0, 0.5, 1]}},
     {"id": "fock-hom", "benchmark": "kernel.boson_fock.v1", "repetitions": 2, "shots": 512,

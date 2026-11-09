@@ -92,7 +92,7 @@ def execute_task(store, task, stop=None):
             adapter = load_adapter(device["adapter"], config)
             require(digest(adapter.describe()) == digest(device["descriptor"]), "设备描述已改变，请重新预检创建任务")
             operator = store.one("users", task["created_by"])["username"]
-            summary = run_suite(payload["suite"], adapter, root / "run", operator, payload["mode"], should_cancel=cancelled)
+            summary = run_suite(payload["suite"], adapter, root / "run", operator, should_cancel=cancelled)
             evidence = read_run(root / "run")
             records = [loads(v) for k, v in evidence.items() if k.startswith("observations/")]
             # A failed/uncertain provider call blocks further work even if report generation fails.

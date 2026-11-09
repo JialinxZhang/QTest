@@ -8,36 +8,32 @@ import zipfile
 
 from .adapter import load_adapter
 from .benchmarks import REGISTRY
-from .bundles import read_run, read_suite, write_bundle
+from .bundles import read_run, read_suite
 from .contracts import QTestError, canonical, read_json, require, validate_device
-from .engine import plan, run_suite, verify_files
+from .engine import verify_files
 from .report_io import write_report
 from .compare import write_comparison
 from .templates import write_templates
 
+# Test execution lives exclusively in the web console (docs/unified-testing-platform.md).
+# This CLI only validates inputs and replays/verifies/reports existing evidence.
+
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="qtest", description="Portable quantum benchmark pilot toolchain")
+    parser = argparse.ArgumentParser(prog="qtest", description="Evidence validation and analysis tools; tests run in the web console")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("catalog", help="List actually implemented protocols")
-    for command in ("validate", "plan", "run", "pack"):
-        item = sub.add_parser(command)
-        item.add_argument("suite")
-        if command in ("plan", "run"):
-            item.add_argument("--adapter", default="local")
-            item.add_argument("--config", help="Local private adapter JSON; never included in result bundles")
-        if command in ("run", "pack"):
-            item.add_argument("--output", required=True)
-        if command == "run":
-            item.add_argument("--operator", required=True)
-            item.add_argument("--mode", choices=("organizer", "vendor"), default="organizer")
-    for command in ("verify", "report", "export"):
+    sub.add_parser("catalog", help="List implemented protocols by layer")
+    item = sub.add_parser("validate", help="Check a suite JSON against the frozen contract")
+    item.add_argument("suite")
+    item = sub.add_parser("adapter-check")
+    item.add_argument("adapter")
+    item.add_argument("--config")
+    for command in ("verify", "report"):
         item = sub.add_parser(command)
         item.add_argument("run")
-        item.add_argument("--expected-suite", help="Organizer's trusted JSON suite or task bundle")
-        if command in ("report", "export"):
-            item.add_argument("--output", required=True)
+        item.add_argument("--expected-suite", help="Trusted JSON suite or task bundle to bind against")
         if command == "report":
+            item.add_argument("--output", required=True)
             item.add_argument("--force", action="store_true", help="Regenerate an existing report and JSON companion")
     item = sub.add_parser("templates", help="Write nine detailed Markdown report templates")
     item.add_argument("--output", required=True)
@@ -46,12 +42,9 @@ def main(argv=None):
     item.add_argument("inputs", nargs="+")
     item.add_argument("--output", required=True, help="Markdown output; JSON and CSV are also produced")
     item.add_argument("--recursive", action="store_true", help="Scan input report directories recursively")
-    item.add_argument("--expected-suite", help="Bind every input to the organizer's trusted suite")
+    item.add_argument("--expected-suite", help="Bind every input to a trusted suite")
     item.add_argument("--strict", action="store_true", help="Fail without output if any candidate report is rejected")
     item.add_argument("--force", action="store_true", help="Regenerate existing comparison outputs")
-    item = sub.add_parser("adapter-check", help="Read-only descriptor validation, does not submit jobs")
-    item.add_argument("adapter")
-    item.add_argument("--config")
     args = parser.parse_args(argv)
     try:
         if args.command == "templates":
@@ -67,22 +60,9 @@ def main(argv=None):
             adapter = load_adapter(args.adapter, read_json(args.config) if args.config else {})
             result = adapter.describe()
             validate_device(result)
-        elif args.command in ("validate", "plan", "run", "pack"):
+        elif args.command == "validate":
             suite = read_suite(args.suite)
-            if args.command == "validate":
-                result = {"valid": True, "suite_id": suite["suite_id"], "cases": len(suite["cases"])}
-            elif args.command == "pack":
-                result = write_bundle(args.output, "task", {"suite.json": canonical(suite)})
-            else:
-                adapter = load_adapter(args.adapter, read_json(args.config) if args.config else {})
-                if args.command == "plan":
-                    result = plan(suite, adapter.describe())
-                else:
-                    summary = run_suite(suite, adapter, args.output, args.operator, args.mode)
-                    result = {"output": str(Path(args.output).resolve()), "status": summary["status"],
-                              "cases": [{"id": c["case_id"], "status": c["status"]} for c in summary["cases"]]}
-                    print(json.dumps(result, ensure_ascii=False, indent=2))
-                    return 3 if any(c["status"] in ("failed", "timeout", "budget_exhausted", "skipped_after_abort") for c in summary["cases"]) else 0
+            result = {"valid": True, "suite_id": suite["suite_id"], "cases": len(suite["cases"])}
         else:
             files = read_run(args.run)
             expected = read_suite(args.expected_suite) if args.expected_suite else None
@@ -90,8 +70,6 @@ def main(argv=None):
             if args.command == "verify":
                 result = {"verified": True, "verification": summary["verification"],
                           "scored_repetitions": sum(c["status"] == "completed" for c in summary["cases"])}
-            elif args.command == "export":
-                result = write_bundle(args.output, "result", files)
             else:
                 result = write_report(files, args.output, expected, args.force)
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -100,5 +78,5 @@ def main(argv=None):
         print(f"qtest: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
-        print("qtest: interrupted; preserve the run directory and confirm unfinished provider job execution states before retrying", file=sys.stderr)
+        print("qtest: interrupted; preserve the evidence directory before retrying", file=sys.stderr)
         return 130

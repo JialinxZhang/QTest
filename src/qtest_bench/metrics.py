@@ -24,9 +24,16 @@ METRICS = {
     "absolute_energy_error": ("最终能量绝对误差", "模型能量单位", "lower", "独立评估能量与参考基态的绝对差"),
     "mean_correlation_mae": ("等时关联平均绝对误差", "无量纲", "lower", "冻结时空网格上连通关联 Cij 相对精确参考的平均绝对误差"),
     "mean_structure_factor_mae": ("结构因子平均绝对误差", "无量纲", "lower", "冻结 q,t 网格上 S(q,t) 相对精确参考的平均绝对误差"),
+    "max_stable_depth": ("最大稳定线路深度", "层", "higher", "镜像电路从浅到深连续达到冻结阈值的最大深度，反映可稳定执行的有效线路深度"),
+    "mean_success_probability": ("平均镜像成功概率", "比例", "higher", "全部受测深度上镜像电路回到初态的平均概率，作为门级执行保真度的代理量"),
+    "success_probability": ("单深度镜像成功概率", "比例", "higher", "深度扫描轨迹内单深度数值，仅作轨迹展示，不单独参与排名"),
+    "success_se": ("镜像成功概率标准误", "比例", "context", "轨迹内单深度的采样不确定度，不是质量指标"),
+    "success_threshold": ("成功阈值", "比例", "reference", "冻结的最大稳定深度判定阈值，不能事后调整"),
+    "random_baseline": ("随机基线成功概率", "比例", "reference", "均匀随机输出回到初态的概率 2^-n，用于解释阈值下限"),
 }
 
 PRIMARY = {
+    "capability.mirror_fidelity.v1": "max_stable_depth",
     "kernel.hamiltonian.v1": "mean_population_mae",
     "kernel.boson_fock.v1": "empirical_tvd",
     "application.mis.v1": "best_ratio",

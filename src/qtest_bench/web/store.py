@@ -113,7 +113,7 @@ class Store:
             """)
             conn.execute("INSERT OR IGNORE INTO devices(id,name,adapter,descriptor) VALUES(?,?,?,?)",
                          ("local", "本地理想模拟器", "local", encode(LocalAdapter().describe())))
-            titles = ["Ising 哈密顿演化", "HOM 玻色采样", "五节点 MIS 优化", "双比特模型 VQE", "一维 Ising 链材料动力学"]
+            titles = ["镜像电路保真度与深度", "Ising 哈密顿演化", "HOM 玻色采样", "五节点 MIS 优化", "双比特模型 VQE", "一维 Ising 链材料动力学"]
             for title, case in zip(titles, fixture()["cases"]):
                 conn.execute("INSERT OR IGNORE INTO cases VALUES(?,?,?,?,1,0,?,?)",
                              ("builtin-" + case["id"], title, "内置集成测试示例，可复制后编辑；不代表真实设备成绩。", encode(case), "system", now()))
@@ -189,10 +189,8 @@ class Store:
         require(execution_plan["fits_budget"], "预计作业数或 shots 超出设置上限")
         require(execution_plan["jobs"] > 0, "此设备不支持任何所选用例")
         require(execution_plan["jobs"] <= 2000, "Web 单任务最多 2000 次作业，请拆分测试")
-        require(body.get("mode", "organizer") in ("organizer", "vendor"), "执行模式无效")
         return {"suite": suite, "case_versions": snapshots, "plan": execution_plan,
-                "device": {"id": device["id"], "adapter": device["adapter"], "config_path": device["config_path"], "descriptor": loads(device["descriptor"])},
-                "mode": body.get("mode", "organizer")}
+                "device": {"id": device["id"], "adapter": device["adapter"], "config_path": device["config_path"], "descriptor": loads(device["descriptor"])}}
 
     def enqueue(self, body, actor, key, kind="test"):
         require(isinstance(key, str) and bool(re.fullmatch(r"[A-Za-z0-9_-]{16,100}", key)), "需要有效的 Idempotency-Key")

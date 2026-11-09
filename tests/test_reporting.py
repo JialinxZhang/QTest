@@ -79,7 +79,7 @@ class ReportTests(unittest.TestCase):
         with self.assertRaisesRegex(QTestError, "payload hash"):
             inspect_report(bad)
         bad = copy.deepcopy(self.artifact)
-        bad["payload"]["evidence"]["run.json"]["cases"][0]["metrics"]["mean_population_mae"] = 99
+        bad["payload"]["evidence"]["run.json"]["cases"][1]["metrics"]["mean_population_mae"] = 99
         bad["sha256"] = digest(bad["payload"])
         with self.assertRaisesRegex(QTestError, "recomputed"):
             inspect_report(bad)
@@ -106,13 +106,13 @@ class ReportTests(unittest.TestCase):
         report = build_comparison([self.root], expected_suite=self.suite)
         self.assertEqual(len(report["sources"]), 1)
         self.assertEqual(len(report["import_summary"]["duplicates"]), 1)
-        self.assertEqual(len(report["groups"]), 5)
+        self.assertEqual(len(report["groups"]), 6)
 
     def test_compatible_runs_compare_with_correct_metric_directions(self):
         self.save(self.artifact_copy("run-a"), "a.report.json")
         self.save(self.artifact_copy("run-b"), "b.md")
         report = build_comparison([self.root], expected_suite=self.suite)
-        self.assertEqual(len(report["groups"]), 5)
+        self.assertEqual(len(report["groups"]), 6)
         vqe = next(g for g in report["groups"] if g["benchmark"] == "application.vqe_toy.v1")
         self.assertIn("absolute_energy_error", vqe["observed_leaders"])
         self.assertNotIn("energy", vqe["observed_leaders"])
@@ -131,7 +131,7 @@ class ReportTests(unittest.TestCase):
         other["payload"]["declared_expected_suite_sha256"] = None
         self.save(other, "b.report.json")
         report = build_comparison([self.root])
-        self.assertEqual(len(report["groups"]), 10)
+        self.assertEqual(len(report["groups"]), 12)
         self.assertIn("limits", render_comparison(report))
 
     def test_qpu_and_simulator_do_not_mix(self):
@@ -140,7 +140,7 @@ class ReportTests(unittest.TestCase):
         other["payload"]["evidence"]["run.json"]["device"]["kind"] = "qpu"
         self.save(other, "b.md")
         report = build_comparison([self.root])
-        self.assertEqual(len(report["groups"]), 10)
+        self.assertEqual(len(report["groups"]), 12)
         self.assertTrue(all(len({e["device_kind"] for e in g["entries"]}) == 1 for g in report["groups"]))
 
     def test_missing_profile_prevents_best_observed_summary(self):
@@ -227,7 +227,7 @@ class ReportTests(unittest.TestCase):
         data = build_comparison([paths["report"]], expected_suite=self.suite)
         self.assertEqual(data["format"], "qtest-comparison-2")
         self.assertEqual(data["sources"][0]["resources"]["requested_shots"], self.summary["resources"]["reserved_shots"])
-        self.assertEqual(len(data["groups"]), 5)
+        self.assertEqual(len(data["groups"]), 6)
 
     def test_explicit_unknown_mitigation_is_not_a_complete_profile(self):
         record = copy.deepcopy(self.artifact["payload"]["evidence"]["observations/000001.json"])
@@ -260,6 +260,15 @@ class ReportTests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             code = main(["compare", str(self.root), "--output", str(self.root / "summary.md")])
         self.assertEqual(code, 3)
+
+    def test_cli_execution_commands_removed_and_analysis_kept(self):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            for command in ("run", "plan", "pack", "export"):
+                with self.subTest(command=command), self.assertRaises(SystemExit) as caught:
+                    main([command, "examples/smoke-suite.json"])
+                self.assertEqual(caught.exception.code, 2)
+            self.assertEqual(main(["catalog"]), 0)
+            self.assertEqual(main(["validate", str(EXAMPLE)]), 0)
 
     def test_nine_detailed_templates_and_unimplemented_labels(self):
         result = write_templates(self.root / "templates")

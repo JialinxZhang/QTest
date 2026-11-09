@@ -75,7 +75,11 @@ def detailed_results(lines, rows):
         table(lines, ["指标 / 字段", "值"], [(describe(k)[0], v) for k, v in metrics.items() if not isinstance(v, (dict, list))])
         if "trajectory" in metrics:
             first = metrics["trajectory"][0] if metrics["trajectory"] else {}
-            if "structure_factor_mae" in first:
+            if "success_probability" in first:
+                lines.extend(["深度扫描轨迹（同一重复内各深度，不视为独立重复；理想成功概率为 1，随机基线 2^-n）：", ""])
+                table(lines, ["线路深度", "成功概率", "标准误", "接受率"],
+                      [(v["depth"], v["success_probability"], v["success_se"], v["acceptance"]) for v in metrics["trajectory"]])
+            elif "structure_factor_mae" in first:
                 lines.extend(["物理量轨迹（同一重复内各时刻，不视为独立重复；局域占据误差不作为材料动力学成绩）：", ""])
                 table(lines, ["演化时间", "关联 MAE", "结构因子 MAE", "经验 TVD", "接受率"],
                       [(v["time"], v["correlation_mae"], v["structure_factor_mae"], v["empirical_tvd"], v["acceptance"]) for v in metrics["trajectory"]])
@@ -109,7 +113,7 @@ def render(summary, suite=None, records=None):
     table(lines, ["字段", "记录"], [
         ("运行 ID", summary["run_id"]), ("设备 ID", device["device_id"]), ("类型 / 路线", f"{device['kind']} / {device['technology']}"),
         ("适配器 / 版本", f"{device['adapter']} / {device['adapter_version']}"), ("能力声明", ", ".join(device["capabilities"])),
-        ("执行方式 / 执行者", f"{summary['mode']} / {summary['operator']}"), ("开始 UTC", summary.get("started_at")),
+        ("执行者", summary.get("operator", "未提供")), ("开始 UTC", summary.get("started_at")),
         ("结束 UTC", summary.get("finished_at")), ("工具 / 协议", f"{summary['tool_version']} / {summary['protocol_version']}"),
         ("操作系统", summary.get("environment", {}).get("platform")), ("Python", summary.get("environment", {}).get("python")),
         ("NumPy", summary.get("environment", {}).get("numpy")), ("jsonschema", summary.get("environment", {}).get("jsonschema")),

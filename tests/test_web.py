@@ -52,7 +52,7 @@ class WebTests(unittest.TestCase):
         rows = self.store.case_rows()
         selected = rows if all_cases else [next(c for c in rows if c["data"]["benchmark"] == "kernel.boson_fock.v1")]
         return {"name": "API smoke", "device_id": "local", "cases": [{"id": c["id"], "version": c["version"]} for c in selected],
-                "seed": 2345, "limits": {"max_jobs": 100, "max_shots": 100000, "wall_seconds": 30, "poll_seconds": 0.01}, "mode": "organizer"}
+                "seed": 2345, "limits": {"max_jobs": 100, "max_shots": 100000, "wall_seconds": 30, "poll_seconds": 0.01}}
 
     def submit(self, body=None, key="test-idempotency-key-0001"):
         response = self.client.post("/api/tasks", json=body or self.body(), headers={"Idempotency-Key": key})
@@ -219,11 +219,11 @@ class WebTests(unittest.TestCase):
             run_worker(self.root, once=True)
             detail = self.client.get(f"/api/tasks/{task['id']}").json()
             self.assertEqual(detail["status"], "succeeded", detail["message"])
-            self.assertEqual(detail["progress"]["completed"], 10)
+            self.assertEqual(detail["progress"]["completed"], 12)
             self.assertEqual(len(detail["artifacts"]), 3)
             result = self.client.get(f"/api/tasks/{task['id']}/result").json()
             self.assertTrue(result["summary"]["verification"]["bound_to_expected_suite"])
-            self.assertEqual(result["resources"]["jobs"], 48)
+            self.assertEqual(result["resources"]["jobs"], 54)
             for name in detail["artifacts"]:
                 response = self.client.get(f"/api/tasks/{task['id']}/artifacts/{name}")
                 self.assertEqual(response.status_code, 200)
@@ -234,7 +234,7 @@ class WebTests(unittest.TestCase):
         result = self.client.get(f"/api/tasks/{comparison['id']}/result").json()
         self.assertEqual(result["format"], "qtest-comparison-2")
         self.assertEqual(len(result["sources"]), 2)
-        self.assertEqual(len(result["groups"]), 5)
+        self.assertEqual(len(result["groups"]), 6)
 
     def test_running_cancel_keeps_evidence_and_blocks_device(self):
         seen = threading.Event()

@@ -103,7 +103,7 @@ def build_comparison(inputs, recursive=False, expected_suite=None, strict=False,
             suite, records = report_context(artifact)
             source = {"path": str(path), "run_id": run_id, "evidence_sha256": evidence_hash,
                       "suite_sha256": summary["suite_sha256"], "protocol_version": summary["protocol_version"],
-                      "device": summary["device"], "operator": summary["operator"], "mode": summary["mode"],
+                      "device": summary["device"], "operator": summary["operator"], "mode": summary.get("mode"),
                       "environment": summary.get("environment", {}), "started_at": summary.get("started_at"),
                       "finished_at": summary.get("finished_at"), "verification": summary["verification"],
                       "status_counts": dict(Counter(r["status"] for r in summary["cases"])),
@@ -120,7 +120,7 @@ def build_comparison(inputs, recursive=False, expected_suite=None, strict=False,
                     "benchmark": case["benchmark"], "rules": rules, "entries": []}
                 entry = {"run_id": run_id, "device_id": summary["device"]["device_id"],
                     "technology": summary["device"]["technology"], "device_kind": summary["device"]["kind"],
-                    "mode": summary["mode"], "operator": summary["operator"], "planned": len(rows), "completed": len(scored),
+                    "mode": summary.get("mode"), "operator": summary["operator"], "planned": len(rows), "completed": len(scored),
                     "status_counts": dict(Counter(r["status"] for r in rows)), "profile_complete": profile_complete,
                     "metrics": numeric_metrics(scored), "resources": usage(jobs)}
                 additions.append((group, entry))
@@ -176,7 +176,7 @@ def render_comparison(report):
         lines.extend(["**本报告为部分导入结果，必须结合第 8 节的拒绝清单解释覆盖范围。**", ""])
     lines.extend(["## 2. 参测系统、来源与覆盖", ""])
     table(lines, ["设备 / 运行 ID", "类型 / 路线", "执行方式", "完成 / 计划重复", "开始 UTC", "外部题目绑定"],
-          [(f"{s['device']['device_id']} / {s['run_id']}", f"{s['device']['kind']} / {s['device']['technology']}", s["mode"],
+          [(f"{s['device']['device_id']} / {s['run_id']}", f"{s['device']['kind']} / {s['device']['technology']}", s["mode"] or "—",
             f"{s['status_counts'].get('completed', 0)} / {s['planned_repetitions']}", s["started_at"], s["verification"]["bound_to_expected_suite"]) for s in sources])
     lines.extend(["同一运行的 Markdown、JSON 与原始证据包只计算一次。同一设备不同 run_id 分别展示，不冒充不同设备，也不自动合并为独立统计重复。", "",
                   "## 3. 可比性规则与分组", "",

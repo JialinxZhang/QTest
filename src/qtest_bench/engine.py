@@ -128,8 +128,7 @@ class Session:
             raise ExecutionStopped(status, f"Job {path}: {type(exc).__name__}; inspect local adapter logs") from None
 
 
-def run_suite(suite, adapter, output, operator, mode="organizer", *, should_cancel=None):
-    require(mode in ("organizer", "vendor"), "Invalid execution mode")
+def run_suite(suite, adapter, output, operator, *, should_cancel=None):
     require(isinstance(operator, str) and 0 < len(operator) <= 200, "Operator label is required")
     device = adapter.describe()
     execution_plan = plan(suite, device)
@@ -142,7 +141,7 @@ def run_suite(suite, adapter, output, operator, mode="organizer", *, should_canc
                "suite_sha256": digest(suite), "protocol_version": suite["protocol_version"],
                "environment": {"python": platform.python_version(), "platform": platform.platform(),
                                "numpy": version("numpy"), "jsonschema": version("jsonschema")},
-               "operator": operator, "mode": mode, "device": device, "started_at": now(), "status": "running",
+               "operator": operator, "device": device, "started_at": now(), "status": "running",
                "resources": {"reserved_jobs": 0, "reserved_shots": 0}, "cases": []}
     started = time.monotonic()
     abort = False
@@ -206,7 +205,7 @@ def verify_files(files, expected_suite=None):
     suite = validate_suite(loads(files["suite.json"]))
     summary = loads(files["run.json"])
     # These releases share the same frozen v1 experiment controllers.
-    require(summary.get("schema_version") == "1.0" and summary.get("tool_version") in ("0.1.0", "0.2.0", "0.2.1", "0.3.0", "0.4.0"), "Unsupported evidence/tool version")
+    require(summary.get("schema_version") == "1.0" and summary.get("tool_version") in ("0.1.0", "0.2.0", "0.2.1", "0.3.0", "0.4.0", "0.5.0"), "Unsupported evidence/tool version")
     require(summary.get("status") == "finished", "Run incomplete; retain evidence and confirm unfinished job execution states")
     require(summary.get("suite_sha256") == digest(suite), "Suite hash mismatch")
     require(summary.get("protocol_version") == suite["protocol_version"], "Protocol version mismatch")

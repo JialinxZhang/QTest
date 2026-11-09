@@ -12,7 +12,7 @@ import zipfile
 import numpy as np
 
 from qtest_bench.adapter import LocalAdapter
-from qtest_bench.benchmarks import get_benchmark
+from qtest_bench.benchmarks import get_benchmark, mirror_circuit, run_mirror
 from qtest_bench.bundles import read_bundle, read_run, read_suite, write_bundle
 from qtest_bench.contracts import QTestError, canonical, digest, loads, validate_measurement, validate_suite
 from qtest_bench.engine import ExecutionStopped, Session, plan, run_suite, verify_files
@@ -52,8 +52,34 @@ class ReferenceTests(unittest.TestCase):
         p = analog_probabilities({"n_qubits": 1, "hx": [1], "hz": [0], "edges": [], "initial": "0", "time": 0.37})
         self.assertAlmostEqual(p["1"], np.sin(0.37)**2)
 
+    def test_mirror_circuit_returns_to_initial_state_ideally(self):
+        p = {"n_qubits": 4, "depths": [2, 5, 9], "circuit_seed": 20261109, "success_threshold": 0.75}
+        for depth in (1, 2, 5, 9, 20):
+            probabilities = gate_probabilities(mirror_circuit(p, depth))
+            self.assertAlmostEqual(probabilities["0000"], 1)
+        self.assertEqual(mirror_circuit(p, 5), mirror_circuit(p, 5))
+
+    def test_mirror_max_stable_depth_requires_contiguous_prefix(self):
+        class StubSession:
+            def __init__(self):
+                self.probabilities, self.index = [0.75, 0.5, 0.9375], 0
+            def execute(self, work, role):
+                p = self.probabilities[self.index]
+                self.index += 1
+                good, rest = round(p * 512), 512 - round(p * 512)
+                counts = {"0000": good}
+                if rest:
+                    counts["1111"] = rest
+                return {"counts": counts, "attempted_shots": 512, "accepted_shots": 512,
+                        "resources": {"qpu_seconds": None, "execution_seconds": None, "timing_scope": "stub"},
+                        "provenance": {"model": "stub"}}
+        p = {"n_qubits": 4, "depths": [2, 5, 9], "circuit_seed": 1, "success_threshold": 0.7}
+        metrics = run_mirror(p, StubSession(), 0)
+        self.assertEqual(metrics["max_stable_depth"], 2)  # depth 5 fails; the later 0.9375 must not repair it
+        self.assertAlmostEqual(metrics["mean_success_probability"], (0.75 + 0.5 + 0.9375) / 3)
+
     def test_hong_ou_mandel_bunching(self):
-        p = fock_probabilities(suite()["cases"][1]["parameters"])
+        p = fock_probabilities(suite()["cases"][2]["parameters"])
         self.assertAlmostEqual(p["1,1"], 0)
         self.assertAlmostEqual(p["2,0"], 0.5)
         self.assertAlmostEqual(p["0,2"], 0.5)
@@ -99,11 +125,11 @@ class ContractTests(unittest.TestCase):
 
     def test_nonunitary_and_graph_errors(self):
         s = suite()
-        s["cases"][1]["parameters"]["unitary_real"][0][0] = 0.1
+        s["cases"][2]["parameters"]["unitary_real"][0][0] = 0.1
         with self.assertRaises(QTestError):
             validate_suite(s)
         s = suite()
-        s["cases"][2]["parameters"]["edges"].append([0, 1])
+        s["cases"][3]["parameters"]["edges"].append([0, 1])
         with self.assertRaises(QTestError):
             validate_suite(s)
 
@@ -119,8 +145,8 @@ class ContractTests(unittest.TestCase):
 
     def test_plan_counts_all_training_and_final_calls(self):
         p = plan(suite(), LocalAdapter().describe())
-        self.assertEqual(p["jobs"], 3 + 1 + 3 + 6 + 2)
-        self.assertEqual(p["requested_shots"], 15 * 128)
+        self.assertEqual(p["jobs"], 3 + 3 + 1 + 3 + 6 + 2)
+        self.assertEqual(p["requested_shots"], 18 * 128)
 
     def test_material_dynamics_requires_two_spins(self):
         s = suite()
@@ -135,40 +161,45 @@ class ExecutionTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def complete(self, name="run", mode="organizer"):
+    def complete(self, name="run"):
         s = suite()
-        result = run_suite(s, LocalAdapter(), self.root / name, "test-lab", mode)
+        result = run_suite(s, LocalAdapter(), self.root / name, "test-lab")
         return s, result, read_run(self.root / name)
 
     def test_end_to_end_independent_replay_and_report(self):
         s, result, files = self.complete()
         verified = verify_files(files, s)
         self.assertTrue(all(c["status"] == "completed" for c in result["cases"]))
-        self.assertEqual(result["cases"][2]["metrics"]["exact_optimum"], 2)
+        self.assertEqual(result["cases"][3]["metrics"]["exact_optimum"], 2)
         self.assertIn("本地模拟验证，不是真机成绩", render(verified))
-        self.assertEqual(result["resources"]["reserved_jobs"], 15)
-        self.assertEqual(len(result["cases"][3]["records"]), 6)
-        material = result["cases"][4]["metrics"]
+        self.assertEqual(result["resources"]["reserved_jobs"], 18)
+        mirror = result["cases"][0]["metrics"]
+        self.assertEqual(mirror["max_stable_depth"], 9)
+        self.assertEqual(len(result["cases"][0]["records"]), 3)
+        self.assertEqual(len(result["cases"][4]["records"]), 6)
+        material = result["cases"][5]["metrics"]
         self.assertIn("mean_correlation_mae", material)
         self.assertIn("mean_structure_factor_mae", material)
-        self.assertEqual(len(result["cases"][4]["records"]), 2)
+        self.assertEqual(len(result["cases"][5]["records"]), 2)
 
-    def test_same_seed_and_vendor_mode_reproduce_metrics(self):
+    def test_same_seed_reproduce_metrics_without_mode_field(self):
         _, first, _ = self.complete("first")
-        _, second, files = self.complete("second", "vendor")
+        _, second, files = self.complete("second")
         self.assertEqual([c["metrics"] for c in first["cases"]], [c["metrics"] for c in second["cases"]])
-        self.assertEqual(verify_files(files, suite())["mode"], "vendor")
+        summary = verify_files(files, suite())
+        self.assertNotIn("mode", summary)
+        self.assertEqual(summary["operator"], "test-lab")
 
     def test_summary_tampering_rejected(self):
         s, result, files = self.complete()
-        result["cases"][2]["metrics"]["best_feasible_size"] = 99
+        result["cases"][3]["metrics"]["best_feasible_size"] = 99
         files["run.json"] = canonical(result)
         with self.assertRaisesRegex(QTestError, "recomputed"):
             verify_files(files, s)
 
     def test_raw_count_tampering_rejected(self):
         s, result, files = self.complete()
-        name = result["cases"][0]["records"][0]
+        name = result["cases"][1]["records"][0]
         record = loads(files[name])
         record["result"]["counts"]["000"] += 1
         record["result_sha256"] = digest(record["result"])
@@ -194,7 +225,7 @@ class ExecutionTests(unittest.TestCase):
 
     def test_wrong_role_even_with_consistent_hashes_rejected(self):
         s, result, files = self.complete()
-        name = result["cases"][2]["records"][-1]
+        name = result["cases"][3]["records"][-1]
         record = loads(files[name])
         record["role"] = "train:999"
         files[name] = canonical(record)
@@ -207,7 +238,7 @@ class ExecutionTests(unittest.TestCase):
                 return dict(super().describe(), capabilities=["gate.sample.v1"])
         s = suite()
         result = run_suite(s, Partial(), self.root / "partial", "lab")
-        self.assertEqual([c["status"] for c in result["cases"]], ["unsupported", "unsupported", "completed", "completed", "unsupported"])
+        self.assertEqual([c["status"] for c in result["cases"]], ["completed", "unsupported", "unsupported", "completed", "completed", "unsupported"])
         verify_files(read_run(self.root / "partial"), s)
 
     def test_ambiguous_submission_never_retries_and_is_durable(self):

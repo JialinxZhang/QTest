@@ -9,6 +9,59 @@ from .numerics import (I, X, Z, analog_probabilities, chain_structure_factor, di
                        mean_and_se, spin_correlations, tensor, tvd)
 
 
+def validate_mirror(p):
+    keys(p, ["n_qubits", "depths", "circuit_seed", "success_threshold"])
+    integer(p["n_qubits"], "n_qubits", 2, 8)
+    require(isinstance(p["depths"], list) and 1 <= len(p["depths"]) <= 20, "Use 1..20 depths")
+    for depth in p["depths"]:
+        integer(depth, "depth", 1, 50)
+    require(p["depths"] == sorted(set(p["depths"])), "Depths must be distinct and ascending")
+    integer(p["circuit_seed"], "circuit_seed", 0, 2147483647)
+    number(p["success_threshold"], "success_threshold", 0.5, 1.0)
+
+
+def mirror_circuit(p, depth):
+    """Deterministic random layers followed by their inverse; ideal output returns to |0..0>."""
+    rng = np.random.default_rng([p["circuit_seed"], p["n_qubits"], depth])
+    gates = []
+    for layer in range(depth):
+        ops = []
+        for q in range(p["n_qubits"]):
+            if rng.random() < 0.5:
+                ops.append({"name": "x", "qubits": [q]})
+            ops.append({"name": "rz", "qubits": [q], "angle": float(rng.uniform(-np.pi, np.pi))})
+        for q in range(p["n_qubits"] - 1):
+            if q % 2 == layer % 2:
+                ops.append({"name": "cx", "qubits": [q, q + 1]})
+        gates.extend(ops)
+        for op in reversed(ops):
+            gates.append(dict(op, angle=-op["angle"]) if op["name"] == "rz" else dict(op))
+    return {"kind": "gate.sample.v1", "n_qubits": p["n_qubits"], "gates": gates}
+
+
+def run_mirror(p, session, seed):
+    """L0 capability probe: mirror-circuit success by depth and the largest stably executable depth."""
+    initial = "0" * p["n_qubits"]
+    values = []
+    for depth in p["depths"]:
+        measured = session.execute(mirror_circuit(p, depth), f"sweep:d={depth}")
+        success, se = mean_and_se(measured, lambda bits: int(bits == initial))
+        values.append({"depth": depth, "success_probability": float(success), "success_se": se,
+                       "acceptance": measured["accepted_shots"] / measured["attempted_shots"]})
+    stable = 0
+    for value in values:  # Prefix rule: a deep pass never repairs an earlier failure.
+        if value["success_probability"] >= p["success_threshold"]:
+            stable = value["depth"]
+        else:
+            break
+    return {"max_stable_depth": stable,
+            "mean_success_probability": float(np.mean([v["success_probability"] for v in values])),
+            "success_threshold": p["success_threshold"], "random_baseline": 2.0 ** -p["n_qubits"],
+            "trajectory": values,
+            "reference": "R1: exact mirror circuit returns to the initial state; ideal success = 1",
+            "scope": "L0 gate-level probe; proxy for circuit fidelity and executable depth capacity"}
+
+
 def vector(values, n, name):
     require(isinstance(values, list) and len(values) == n, f"{name} must have length {n}")
     for value in values:
@@ -239,6 +292,7 @@ class Benchmark:
 
 
 REGISTRY = {
+    "capability.mirror_fidelity.v1": Benchmark("Gate mirror-circuit fidelity and depth capacity", "gate.sample.v1", validate_mirror, run_mirror, lambda p: len(p["depths"]), "L0"),
     "kernel.hamiltonian.v1": Benchmark("Ising Hamiltonian evolution", "analog.evolve.v1", validate_hamiltonian, run_hamiltonian, lambda p: len(p["times"]), "L1"),
     "kernel.boson_fock.v1": Benchmark("Ideal Fock boson sampling", "photon.fock.v1", validate_fock, run_fock, lambda p: 1, "L1"),
     "application.mis.v1": Benchmark("MIS with full QAOA optimization", "gate.sample.v1", validate_mis, run_mis, lambda p: p["iterations"] + 1, "L2"),
